@@ -1,0 +1,6 @@
+# Generated Files
+*.png
+java/*
+
+# VS Code
+.history/*
