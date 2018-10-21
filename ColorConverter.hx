@@ -28,7 +28,7 @@ private class Color
         this.a = a;
 
         calculateBrightness ();
-    })
+    }
 
     @:overload
     public function new (r: String, g: String, b: String, a: String)
@@ -103,7 +103,7 @@ class ColorConverter
             index++;
 
         if (index == Sys.args ().length)
-            writeError ("Error: At least one color must be given in the palette list");
+            writeError ("Error: At least one color must be given in palette_list");
 
         var palettes = new Array <Color> ();
         for (p in Sys.args () [index].split (","))
@@ -175,7 +175,7 @@ class ColorConverter
         }
 
         else
-            Sys.println ("Doesn't exist");
+            Sys.println ("A file was not found at: " + path);
     }
 
     /**
