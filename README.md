@@ -17,3 +17,6 @@ _An image before being ran through ColorConverter_
 
 ![alt text](docs/Images/After.png "The same image after being ran through ColorConverter using a palette of greys")
 _The same image after being ran through ColorConverter using a palette of greys_
+
+`java -jar java/ColorConverter.jar "10 12 17 255, 48 56 58 255, 68 79 81 255, 102 109 112 255, 145 150 147 255, 173 175 170 255, 209 206 198 255, 
+    221 219 209 255" Before.png` was the command used to produce the above image.
