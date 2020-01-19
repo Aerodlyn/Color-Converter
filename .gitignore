@@ -1,6 +1,7 @@
 # Generated Files
 *.png
 *.sh
+cpp/*
 java/*
 
 # VS Code

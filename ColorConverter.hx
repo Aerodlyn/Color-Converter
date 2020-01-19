@@ -8,7 +8,7 @@ import sys.FileSystem;
  * Represents the color of a pixel.
  *
  * @author  Patrick Jahnig (Aerodlyn)
- * @version 2018.10.17
+ * @version 2020.01.17
  */
 private class Color
 {
@@ -19,8 +19,7 @@ private class Color
 
     private var brightness: Int;
 
-    @:overload
-    public function new (r: Int, g: Int, b: Int, a: Int)
+    private function new (r: Int, g: Int, b: Int, a: Int)
     {
         this.r = r;
         this.g = g;
@@ -30,18 +29,8 @@ private class Color
         calculateBrightness ();
     }
 
-    @:overload
-    public function new (r: String, g: String, b: String, a: String)
-    {
-        this.r = Std.parseInt (r);
-        this.g = Std.parseInt (g);
-        this.b = Std.parseInt (b);
-        this.a = Std.parseInt (a);
-
-        calculateBrightness ();
-    }
-
-    public function getBrightness () : Int { return brightness; }
+    public function getBrightness (): Int
+        { return brightness; }
 
     /**
      * Compares two given Color instances and returns a value indicating which has the greater brightness.
@@ -51,7 +40,7 @@ private class Color
      *
      * @return 1 if x's brightness is greater than y's, -1 if the opposite, or 0 if the two are equal
      */
-    public static function compare (x: Color, y: Color) : Int 
+    public static function compare (x: Color, y: Color): Int 
     { 
         var xBrightness = x.getBrightness (),
             yBrightness = y.getBrightness ();
@@ -70,12 +59,19 @@ private class Color
             + Math.pow (this.b, 2) * 0.068));
     }
 
+    public static function fromInt (r: Int, g: Int, b: Int, a: Int): Color
+        { return new Color (r, g, b, a); }
+
+    public static function fromString (r: String, g: String, b: String, a: String): Color
+        { return new Color (Std.parseInt (r), Std.parseInt (g), Std.parseInt (b), Std.parseInt (a)); }
+
     /**
      * Returns the String representation of this Color instance.
      *
      * @return The String representation of this Color
      */
-    public function toString () : String { return Std.string (getBrightness ()); }
+    public function toString (): String
+        { return Std.string (getBrightness ()); }
 }
 
 /**
@@ -83,7 +79,7 @@ private class Color
  *  given in the palettes based on the level of darkness of the pixel.
  *
  * @author  Patrick Jahnig (Aerodlyn)
- * @version 2018.10.17
+ * @version 2020.01.17
  */
 class ColorConverter
 {
@@ -114,7 +110,7 @@ class ColorConverter
             // Check if the valid number of values have been given
             // NOTE: Technically five values are given (if the first characters are spaces) so check if that is the case
             if (ps.length == 4 || (start == 1 && ps.length == 5))
-                palettes.push (new Color (ps [start], ps [start + 1], ps [start + 2], ps [start + 3]));
+                palettes.push (Color.fromString (ps [start], ps [start + 1], ps [start + 2], ps [start + 3]));
             
             else
                 writeError ("Error: Invalid number of values given in palette color: " + ps);
@@ -159,8 +155,7 @@ class ColorConverter
                 if (a == 0)
                     continue;
 
-                var color = new Color (r, g, b, a);
-                color = getEquivalentColorFromPalette (color, palettes, inverse);
+                var color = getEquivalentColorFromPalette (Color.fromInt (r, g, b, a), palettes, inverse);
 
                 bytes.set (i * PIXEL_PARTS, color.b);
                 bytes.set (i * PIXEL_PARTS + 1, color.g);
@@ -221,23 +216,18 @@ class ColorConverter
             valueBrightness = 255 - valueBrightness;
 
         var lower: Color = palettes [0];
-        try
+        var higher: Color = lower;
+
+        for (index in (1...palettes.length))
         {
-            var index = 1;
-            var higher: Color;
-
-            while ((higher = palettes [index]).getBrightness () < valueBrightness)
-            {
+            higher = palettes [index];
+            if (higher.getBrightness () < valueBrightness)
                 lower = higher;
-                index++;
-            }
-
-            var lowerDiff = valueBrightness - lower.getBrightness (),
-                higherDiff = higher.getBrightness () - valueBrightness;
-
-            return lowerDiff < higherDiff ? lower : higher;
         }
 
-        catch (ex: Dynamic) { return lower; }
+        var lowerDiff = valueBrightness - lower.getBrightness (),
+            higherDiff = higher.getBrightness () - valueBrightness;
+
+        return lowerDiff < higherDiff ? lower : higher;
     }
 }
