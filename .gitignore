@@ -5,4 +5,5 @@ cpp/*
 java/*
 
 # VS Code
-.history/*
+.history
+.vscode
