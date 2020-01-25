@@ -1,3 +1,8 @@
--main ColorConverter
+-cp src
+
 -lib format
+
+-main src.Main
+
 -java java
+# -cpp cpp
