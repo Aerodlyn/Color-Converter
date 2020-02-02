@@ -6,3 +6,7 @@
 
 -java java
 # -cpp cpp
+
+# -D dce=full
+# -D no_traces
+# -D no_debug
