@@ -2,7 +2,9 @@
 target/
 
 # VS Code
+.history/
 .vscode/
 
 # Misc.
 *.png
+*.sh
