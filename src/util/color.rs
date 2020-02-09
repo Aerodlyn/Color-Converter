@@ -1,25 +1,15 @@
 //! Represents a singular color entity parsed from the palette command line option.
 //! 
 //! * Author  - Patrick Jahnig (Aerodlyn)
-//! * Version - 2019.02.04
+//! * Version - 2019.02.09
 
 use regex::Captures;
 use regex::Regex;
 
 use std::cmp::Ordering;
-use std::fmt;
+use std::panic;
 
-#[derive (Clone, Debug)]
-pub struct ParseError
-{
-    msg: String
-}
-
-impl fmt::Display for ParseError
-{
-    fn fmt (&self, f: &mut fmt::Formatter <'_>) -> fmt::Result
-        { return write! (f, "{}", self.msg); }
-}
+use super::parse_error::ParseError;
 
 #[derive (Debug)]
 pub struct Color
@@ -118,7 +108,7 @@ impl Color
                     else
                     {
                         most_similar =
-                            if (color_brightness - original_brightness) < prev.calculate_brightness ()
+                            if (color_brightness - original_brightness) < (original_brightness - prev.calculate_brightness ())
                                 { Some (color) }
                             else
                                 { Some (prev) };
@@ -136,11 +126,11 @@ impl Color
     /// Creates a new `Color` instance using the given hexadecimal string.
     /// 
     /// # Arguments
-    /// * `value` - The hexadecimal string to determine the new `Color` instance's RGB values
+    /// * `value` - The hexadecimal string to determine the new `Color` instance's RGBA values
     pub fn from_hex (value: &str) -> Result <Color, ParseError>
     {
-        let short_hex_reg: Regex = Regex::new (r"(?i)^0x([a-f0-9])([a-f0-9])([a-f0-9])$").unwrap ();
-        let long_hex_reg: Regex = Regex::new (r"(?i)^0x([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})$").unwrap ();
+        let short_hex_reg: Regex = Regex::new (r"(?i)^0x([a-f0-9])([a-f0-9])([a-f0-9])([a-f0-9])?$").unwrap ();
+        let long_hex_reg: Regex = Regex::new (r"(?i)^0x([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})([a-f0-9]{2})?$").unwrap ();
         
         let captures: Option <Captures> = short_hex_reg.captures (value).or (long_hex_reg.captures (value));
         return match captures
@@ -150,12 +140,59 @@ impl Color
                 let r: &str = groups.get (1).unwrap ().as_str ();
                 let g: &str = groups.get (2).unwrap ().as_str ();
                 let b: &str = groups.get (3).unwrap ().as_str ();
+                let a: &str = match groups.get (4)
+                {
+                    Some (a) => a.as_str (),
+                    None     => if r.len () == 1 { "F" } else { "F" }
+                };
                 
-                let color: Color = Color::new (Color::hex_to_u8 (r)?, Color::hex_to_u8 (g)?, Color::hex_to_u8 (b)?, 255);
+                let color: Color = Color::new (
+                    Color::hex_to_u8 (r)?,
+                    Color::hex_to_u8 (g)?,
+                    Color::hex_to_u8 (b)?,
+                    Color::hex_to_u8 (a)?
+                );
                 Ok (color)
             },
-            
             None => Err (ParseError { msg: format! ("Could not parse '{}' as a hexadecimal value", value) })
+        };
+    }
+
+    /// Creates a new `Color` instance using the given RGBA string.
+    /// 
+    /// # Arguments
+    /// * `value` - The RGBA string to determine the new `Color` instance's RGBA values
+    pub fn from_rgba (value: &str) -> Result <Color, ParseError>
+    {
+        let reg: Regex = Regex::new (r"^(\d+),(\d+),(\d+)(?:,(\d+))?$").unwrap ();
+        return match reg.captures (value)
+        {
+            Some (groups) =>
+            {
+                let r: &str = groups.get (1).unwrap ().as_str ();
+                let g: &str = groups.get (2).unwrap ().as_str ();
+                let b: &str = groups.get (3).unwrap ().as_str ();
+                let a: &str = match groups.get (4)
+                {
+                    Some (a) => a.as_str (),
+                    None     => "255"
+                };
+
+                return match panic::catch_unwind (||
+                {
+                    Color::new (
+                        r.parse::<u8> ().unwrap (),
+                        g.parse::<u8> ().unwrap (),
+                        b.parse::<u8> ().unwrap (),
+                        a.parse::<u8> ().unwrap ()
+                    )
+                })
+                {
+                    Ok (color) => Ok (color),
+                    Err (_)    => Err (ParseError { msg: format! ("All numbers in '{}' must be between 0-255", value) })
+                };
+            },
+            None          => Err (ParseError { msg: format! ("Could not parse '{}' as a RGBA value", value) })
         };
     }
     
@@ -178,10 +215,11 @@ impl Color
     pub fn to_hex (&self) -> String
     {
         return format! (
-            "0x{}{}{}", 
+            "0x{}{}{}{}", 
             Color::u8_to_hex (self.r), 
             Color::u8_to_hex (self.g), 
-            Color::u8_to_hex (self.b)
+            Color::u8_to_hex (self.b),
+            Color::u8_to_hex (self.a)
         );
     }
     
@@ -191,7 +229,7 @@ impl Color
     /// * `value` - The value to convert (0-255)
     fn u8_to_hex (value: u8) -> String
     {
-        let hex_values: [&str; 15] = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "E", "F" ];
+        let hex_values: [&str; 16] = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F" ];
         let mut result: String = String::new ();
         
         let mut counter: u8 = value;
@@ -202,5 +240,56 @@ impl Color
         }
         
         return result;
+    }
+}
+
+#[cfg (test)]
+mod tests
+{
+    use super::Color;
+
+    #[test]
+    fn test_invert ()
+    {
+        let mut color: Color = Color::new (50, 100, 150, 200);
+        color.invert ();
+
+        assert_eq! (205, color.r);
+        assert_eq! (155, color.g);
+        assert_eq! (105, color.b);
+        assert_eq! (200, color.a);
+    }
+
+    #[test]
+    fn test_calculate_brightness ()
+    {
+        let color: Color = Color::new (50, 100, 150, 200);
+        assert_eq! (95, color.calculate_brightness ());
+    }
+
+    #[test]
+    fn test_new ()
+    {
+        let color: Color = Color::new (50, 100, 150, 200);
+        
+        assert_eq! (50, color.r);
+        assert_eq! (100, color.g);
+        assert_eq! (150, color.b);
+        assert_eq! (200, color.a);
+    }
+
+    #[test]
+    fn test_find_most_similar ()
+    {
+        let palette: Vec <Color> = vec! (
+            Color::new (50, 100, 150, 200),
+            Color::new (55, 105, 155, 205)
+        );
+
+        // Should pick the same color
+        let test_color_1: Color = Color::new (50, 100, 150, 200);
+        let test_result_1: Option <&Color> = Color::find_most_similar (&test_color_1, &palette);
+        assert! (test_result_1.is_some ());
+        assert_eq! (&test_color_1, test_result_1.unwrap ());
     }
 }
